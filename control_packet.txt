@@ -1,0 +1,15 @@
+POST /nrc/control_0 HTTP/1.1
+User-Agent: Panasonic Android VR-CP UPnP/2.0
+Host: 192.168.1.101:55000
+Content-Type: text/xml; charset="utf-8"
+SOAPACTION: "urn:panasonic-com:service:p00NetworkControl:1#X_SendKey"
+Content-Length: 329
+
+<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+ <s:Body>
+  <u:X_SendKey xmlns:u="urn:panasonic-com:service:p00NetworkControl:1">
+   <X_KeyEvent>NRC_TV-ONOFF</X_KeyEvent>
+  </u:X_SendKey>
+ </s:Body>
+</s:Envelope>
