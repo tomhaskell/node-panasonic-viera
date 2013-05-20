@@ -73,7 +73,7 @@ exports.VIERA_LINK		= 'VIERA_LINK';
 exports.STTL			= 'STTL';
 exports.HOLD			= 'HOLD';
 exports.R_TUNE			= 'R_TUNE';
-exports.3D				= '3D';
+exports._3D				= '3D';
 
 /* 
  * Variables
