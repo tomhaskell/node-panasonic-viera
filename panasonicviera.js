@@ -75,6 +75,21 @@ exports.HOLD			= 'HOLD';
 exports.R_TUNE			= 'R_TUNE';
 exports._3D				= '3D';
 
+/*
+ * Internal Constants
+ */
+// urls
+var URL_SENDKEY			= '/nrc/control_0';
+
+// urns
+var URN_SENDKEY			= 'panasonic-com:service:p00NetworkControl:1';
+
+// actions
+var ACTION_SENDKEY		= 'X_SendKey';
+
+// args
+var ARG_SENDKEY			= 'X_KeyEvent';
+
 /* 
  * Variables
  */
@@ -83,33 +98,42 @@ var ipAddress = "0.0.0.0";
 
 /**
  * PanasonicViera contructor
+ *
+ * @param {string} ipAddress The IP Address of the TV
  */
 function PanasonicViera(ipAddress){
 	this.ipAddress = ipAddress;
 }
 
-
-PanasonicViera.prototype.send = function(command){
+/**
+ * Create and submit XML request to the TV
+ * 
+ * @param  {String} url    The API endpoint required for this <action>
+ * @param  {String} urn    The URN required for this <action>
+ * @param  {String} action The action type to perform
+ * @param  {Array}  option Options array - use ['args'] for action specific events
+ */
+PanasonicViera.prototype.submitRequest = function(url, urn, action, option){
 
 	var command_str = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"+
 "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\n"+
 " <s:Body>\n"+
-"  <u:X_SendKey xmlns:u=\"urn:panasonic-com:service:p00NetworkControl:1\">\n"+
-"   <X_KeyEvent>NRC_"+command+"-ONOFF</X_KeyEvent>\n"+
-"  </u:X_SendKey>\n"+
+"  <u:"+action+" xmlns:u=\"urn:"+urn+"\">\n"+
+"   "+option['args']+"\n"+
+"  </u:"+action+">\n"+
 " </s:Body>\n"+
 "</s:Envelope>\n";
 
 	var post_options = {
 		host: this.ipAddress,
 		port: '55000',
-		path: '/nrc/control_0',
+		path: url,
 		method: 'POST',
 		headers: {
 			'Content-Length': command_str.length,
 			'Content-Type': 'text/xml; charset="utf-8"',
 			'User-Agent': 'net.thlabs.nodecontrol',
-			'SOAPACTION': '"urn:panasonic-com:service:p00NetworkControl:1#X_SendKey"'
+			'SOAPACTION': '"urn:'+urn+'#'+action+'"'
 		}
 	}
 
@@ -131,4 +155,40 @@ PanasonicViera.prototype.send = function(command){
 	req.write(command_str);
 	req.end();
 
+}
+
+/**
+ * Send a key state event to the TV
+ * 
+ * @param  {String} key   The key value to send
+ * @param  {String} state <ON|OFF|ONOFF>
+ */
+PanasonicViera.prototype.sendKey = function(key, state){
+	return this.submitRequest(URL_SENDKEY, URN_SENDKEY, ACTION_SENDKEY, {
+		args: "<"+ARG_SENDKEY+">NRC_"+key+"-"+state+"</"+ARG_SENDKEY+">"
+	});
+}
+/**
+ * Send a key press event to the TV 
+ * 
+ * @param  {String} key   The key that has been pressed
+ */
+PanasonicViera.prototype.keyDown = function(key){
+	return this.sendKey(key,'ON');
+}
+/**
+ * Send a key release event to the TV
+ * 
+ * @param  {String} key   The key that has been released
+ */
+PanasonicViera.prototype.keyUp = function(key){
+	return this.sendKey(key,'OFF');
+}
+/**
+ * Send a key push/release event to the TV
+ * 
+ * @param  {String} key   The key that has been released
+ */
+PanasonicViera.prototype.send = function(key){
+	return this.sendKey(key,'ONOFF');
 }
