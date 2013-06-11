@@ -6,12 +6,11 @@ lib-cov
 *.out
 *.pid
 *.gz
-*.sublime-project
-*.sublime-workspace
+*.sublime-*
+*.php
 
 pids
 logs
 results
 
 npm-debug.log
-VieraControl.php
