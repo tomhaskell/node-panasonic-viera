@@ -20,6 +20,8 @@ Node.js module for control of a Panasonic Viera TV
 
 	```js
 	tv.send(PanasonicViera.POWER_TOGGLE);
+
+	tv.setVolume(20);
 	```
 
 You can see an example in ``` index.js ```

@@ -79,13 +79,19 @@ exports._3D				= '3D';
  * Internal Constants
  */
 // urls
-var URL_SENDKEY			= '/nrc/control_0';
+var URL_NETWORK			= '/nrc/control_0';
+var URL_RENDERING		= '/dmr/control_0';
 
 // urns
-var URN_SENDKEY			= 'panasonic-com:service:p00NetworkControl:1';
+var URN_NETWORK			= 'panasonic-com:service:p00NetworkControl:1';
+var URN_RENDERING		= 'schemas-upnp-org:service:RenderingControl:1';
 
 // actions
 var ACTION_SENDKEY		= 'X_SendKey';
+var ACTION_GETVOLUME	= 'GetVolume';
+var ACTION_SETVOLUME	= 'SetVolume';
+var ACTION_GETMUTE		= 'GetMute';
+var ACTION_SETMUTE		= 'SetMute';
 
 // args
 var ARG_SENDKEY			= 'X_KeyEvent';
@@ -113,13 +119,13 @@ function PanasonicViera(ipAddress){
  * @param  {String} action The action type to perform
  * @param  {Array}  option Options array - use ['args'] for action specific events
  */
-PanasonicViera.prototype.submitRequest = function(url, urn, action, option){
-
+PanasonicViera.prototype.submitRequest = function(url, urn, action, options){
+	var self = this;
 	var command_str = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"+
 "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\n"+
 " <s:Body>\n"+
 "  <u:"+action+" xmlns:u=\"urn:"+urn+"\">\n"+
-"   "+option['args']+"\n"+
+"   "+options['args']+"\n"+
 "  </u:"+action+">\n"+
 " </s:Body>\n"+
 "</s:Envelope>\n";
@@ -137,15 +143,19 @@ PanasonicViera.prototype.submitRequest = function(url, urn, action, option){
 		}
 	}
 
-	console.log(command_str);
+	if(options.hasOwnProperty('callback')){
+		self.callback = options['callback'];
+	}else{
+		self.callback = function(data){ console.log(data) };
+	}
+
+	//console.log(command_str);
 
 	var req = http.request(post_options, function(res) {
-		console.log('STATUS: ' + res.statusCode);
-		console.log('HEADERS: ' + JSON.stringify(res.headers));
+		//console.log('STATUS: ' + res.statusCode);
+		//console.log('HEADERS: ' + JSON.stringify(res.headers));
 		res.setEncoding('utf8');
-		res.on('data', function (chunk) {
-			console.log('BODY: ' + chunk);
-		});
+		res.on('data', self.callback);
 	});
 	req.on('error', function(e) {
 		console.log('error: ' + e.message);
@@ -164,9 +174,14 @@ PanasonicViera.prototype.submitRequest = function(url, urn, action, option){
  * @param  {String} state <ON|OFF|ONOFF>
  */
 PanasonicViera.prototype.sendKey = function(key, state){
-	return this.submitRequest(URL_SENDKEY, URN_SENDKEY, ACTION_SENDKEY, {
-		args: "<"+ARG_SENDKEY+">NRC_"+key+"-"+state+"</"+ARG_SENDKEY+">"
-	});
+	this.submitRequest(
+		URL_NETWORK, 
+		URN_NETWORK, 
+		ACTION_SENDKEY, 
+		{
+			args: "<"+ARG_SENDKEY+">NRC_"+key+"-"+state+"</"+ARG_SENDKEY+">"
+		}
+	);
 }
 /**
  * Send a key press event to the TV 
@@ -174,7 +189,7 @@ PanasonicViera.prototype.sendKey = function(key, state){
  * @param  {String} key   The key that has been pressed
  */
 PanasonicViera.prototype.keyDown = function(key){
-	return this.sendKey(key,'ON');
+	this.sendKey(key,'ON');
 }
 /**
  * Send a key release event to the TV
@@ -182,7 +197,7 @@ PanasonicViera.prototype.keyDown = function(key){
  * @param  {String} key   The key that has been released
  */
 PanasonicViera.prototype.keyUp = function(key){
-	return this.sendKey(key,'OFF');
+	this.sendKey(key,'OFF');
 }
 /**
  * Send a key push/release event to the TV
@@ -190,5 +205,88 @@ PanasonicViera.prototype.keyUp = function(key){
  * @param  {String} key   The key that has been released
  */
 PanasonicViera.prototype.send = function(key){
-	return this.sendKey(key,'ONOFF');
+	this.sendKey(key,'ONOFF');
+}
+
+/**
+ * Get the current volume value
+ * 
+ * @param  {Function} callback A function of the form function(volume) to return the volume value to
+ */
+PanasonicViera.prototype.getVolume = function(callback){
+	self = this;
+	self.volCallback = callback;
+	this.submitRequest(
+		URL_RENDERING,
+		URN_RENDERING,
+		ACTION_GETVOLUME,
+		{
+			args: "<InstanceID>0</InstanceID><Channel>Master</Channel>",
+			callback: function(data){
+				var regex = /<CurrentVolume>(\d*)<\/CurrentVolume>/gm;
+				var match = regex.exec(data);
+				if(match !== null){
+					var volume = match[1];
+					self.volCallback(volume);
+				}
+			}
+		}
+	);
+}
+/**
+ * Set the volume to specific level
+ * 
+ * @param  {int} volume The value to set the volume to
+ */
+PanasonicViera.prototype.setVolume = function(volume){
+	this.submitRequest(
+		URL_RENDERING,
+		URN_RENDERING,
+		ACTION_SETVOLUME,
+		{
+			args: "<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>"+volume+"</DesiredVolume>"
+		}
+	);
+}
+
+/**
+ * Get the current mute setting
+ * 
+ * @param  {Function} callback A function of the form function(mute) to return the volume value to
+ */
+PanasonicViera.prototype.getMute = function(callback){
+	self = this;
+	self.muteCallback = callback;
+	this.submitRequest(
+		URL_RENDERING,
+		URN_RENDERING,
+		ACTION_GETMUTE,
+		{
+			args: "<InstanceID>0</InstanceID><Channel>Master</Channel>",
+			callback: function(data){
+				var regex = /<CurrentMute>([0-1])<\/CurrentMute>/gm;
+				var match = regex.exec(data);
+				if(match !== null){
+					var mute = (match[1] == '1');
+					self.muteCallback(mute);
+				}
+			}
+		}
+	);
+}
+/**
+ * Set mute to on/off
+ * 
+ * @param  {boolean} enable The value to set mute to
+ */
+PanasonicViera.prototype.setMute = function(enable){
+	var data = (enable)? '1' : '0';
+	this.submitRequest(
+		URL_RENDERING,
+		URN_RENDERING,
+		ACTION_SETMUTE,
+		{
+			args: "<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredMute>"+data+"</DesiredMute>"
+		}
+	);
 }
